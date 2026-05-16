@@ -1,0 +1,25 @@
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Local ingest scratch
+/data/
+/tmp/
+/work/
+
+# Env and secrets
+.env
+.env.local
+*.key
+*.pem
+secrets/
