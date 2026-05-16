@@ -1,0 +1,132 @@
+# PublicVCons source profile: US House of Representatives floor video, via C-SPAN
+#
+# Why C-SPAN as the access path:
+#   The House floor camera feed originates inside the chamber and is therefore
+#   a US government work in the public domain (17 USC 105). C-SPAN's network
+#   distribution of that feed does not create a new copyright in the underlying
+#   chamber footage. C-SPAN itself confirms this on its rights page, where
+#   House and Senate floor proceedings are excluded from its general non
+#   commercial license requirement and treated as public domain.
+#   See https://www.c-span.org/about/copyrightsAndLicensing/
+#
+# This profile is the first live source for PublicVCons and is intentionally
+# conservative on rate limits and ambitious on metadata richness. Treat any
+# change here as a spec change: bump the JSON Schema for vcon participants
+# rather than diverging silently.
+
+id: cspan_house_floor
+name: US House of Representatives, floor proceedings (via C-SPAN)
+kind: live
+status: active
+description: >
+  Live capture of US House of Representatives floor proceedings, accessed
+  through C-SPAN. Underlying camera feed is a US government work in the
+  public domain. Used as the first end to end ingest in Phase 0 because it
+  is the cleanest legal posture available.
+
+# The canonical published feed page. The acquisition tool resolves the
+# embedded HLS playlist from the page at run time, so this URL is stable
+# across daily sessions and does not need a date placeholder.
+url_pattern: https://www.c-span.org/networks/?channel=house
+
+# House sessions are not on a fixed clock. The pipeline polls the schedule
+# endpoint and only starts capture when a session is gaveled in.
+refresh_cadence: event_driven
+
+acquisition:
+  tool: yt-dlp
+  args:
+    - --hls-prefer-native
+    - --no-part
+    - --no-mtime
+    - --restrict-filenames
+    - --concurrent-fragments
+    - "1"
+  output_audio_format: wav_16k_mono
+  output_video_format: mp4_h264_aac
+
+normalization:
+  audio_sample_rate_hz: 16000
+  audio_channels: 1
+  video_container: mp4
+  video_codec: h264
+  audio_codec: aac
+
+transcription:
+  model: whisper.cpp:large-v3
+  language_hint: en
+  word_timestamps: true
+
+diarization:
+  engine: pyannote.audio:3.x
+  min_speakers: null
+  max_speakers: null
+
+# Floor proceedings have a published speaker order in the Congressional Record.
+# We anchor diarizer outputs to that record rather than maintaining a voice
+# print library for every Representative.
+speaker_identification:
+  strategy: congressional_record
+  metadata_source: https://www.govinfo.gov/app/collection/crec
+
+analysis:
+  model: llama3.1:8b-instruct-q4
+  tasks:
+    - summary
+    - topics
+    - entities
+    - bill_references
+    - vote_references
+    - neutral_editorial_summary
+
+participants_schema:
+  default_role: legislator
+  affiliation_required: true
+  anonymous_by_default: false
+  metadata_keys:
+    - full_name
+    - chamber          # always "house" for this profile
+    - state
+    - district
+    - party
+    - bioguide_id      # canonical id from bioguide.congress.gov
+    - role             # legislator, presiding_officer, clerk, sergeant_at_arms
+
+lawful_basis:
+  basis: public_task
+  justification: >
+    The US House of Representatives floor camera feed is a work of the US
+    government, in the public domain under 17 USC 105. C-SPAN's terms
+    expressly exclude House and Senate floor proceedings from its
+    non-commercial license requirement and acknowledge their public domain
+    status. Publishing transcripts and analyses of this material is a task
+    carried out in the public interest, supporting government transparency
+    and accountability.
+  purpose_grants:
+    - public_transparency
+    - research
+    - journalism
+  expiration: null
+  terms_of_service: https://policy.publicvcons.org/terms
+  registry: https://scitt.publicvcons.org
+  proof_mechanisms: scitt_statement_chain
+  citations:
+    - https://www.law.cornell.edu/uscode/text/17/105
+    - https://www.c-span.org/about/copyrightsAndLicensing/
+    - https://clerk.house.gov/
+
+rate_limits:
+  requests_per_minute: 30
+  concurrent_downloads: 1
+  notes: >
+    Single concurrent download per session day. C-SPAN serves from a CDN and
+    will not block this profile, but we self throttle to be a good neighbor.
+
+distribution_channels:
+  bluesky_post: true
+  huggingface_include_audio: false
+  huggingface_include_transcripts: true
+
+media_storage:
+  target: digital_ocean_spaces://publicvcons/media/live/cspan_house_floor
+  cdn: https://media.publicvcons.org
