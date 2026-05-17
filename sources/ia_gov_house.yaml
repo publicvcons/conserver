@@ -1,0 +1,121 @@
+# PublicVCons source profile: US House proceedings mirrored on the Internet Archive
+#
+# This is a backfill source. The Internet Archive holds public-domain
+# recordings of US House events. Where an item is a US government work it
+# is public domain under 17 USC 105; many such items are additionally
+# dedicated CC0 by the uploader (e.g. public.resource.org / Law.Gov).
+#
+# Used when the primary live path (C-SPAN) is unavailable or when the
+# material is historical. Per-item provenance (the exact archive id and
+# the as-obtained media hash) is recorded on each vcon, not in this
+# profile.
+
+id: ia_gov_house
+name: US House proceedings (Internet Archive mirror, public domain)
+kind: backfill
+status: active
+description: >
+  Backfill capture of US House of Representatives proceedings and events
+  obtained from the Internet Archive, where the item is a US government
+  work in the public domain and frequently CC0-dedicated.
+
+url_pattern: https://archive.org/details/{archive_identifier}
+
+refresh_cadence: event_driven
+
+acquisition:
+  tool: httpx
+  args:
+    - --follow-redirects
+  output_audio_format: wav_16k_mono
+  output_video_format: mp4_h264_aac
+
+normalization:
+  audio_sample_rate_hz: 16000
+  audio_channels: 1
+  video_container: mp4
+  video_codec: h264
+  audio_codec: aac
+
+transcription:
+  model: whisper.cpp:large-v3
+  language_hint: en
+  word_timestamps: true
+
+diarization:
+  engine: pyannote.audio:3.1
+  min_speakers: null
+  max_speakers: null
+
+# Historical House material rarely has a clean Congressional Record
+# speaker map, and our enrollment library does not cover older speakers,
+# so speakers stay anonymous unless external metadata identifies them.
+speaker_identification:
+  strategy: none
+  metadata_source: null
+
+analysis:
+  model: llama3.1:8b-instruct-q4_K_M
+  tasks:
+    - summary
+    - topics
+    - entities
+    - bill_references
+    - vote_references
+    - neutral_editorial_summary
+
+participants_schema:
+  default_role: speaker
+  affiliation_required: false
+  anonymous_by_default: true
+  metadata_keys:
+    - diarization_label
+    - identified
+
+lawful_basis:
+  basis: public_task
+  justification: >
+    Recordings of US House of Representatives proceedings and events are
+    works of the US government in the public domain under 17 USC 105.
+    Items obtained from the Internet Archive under this profile are
+    additionally CC0-dedicated by the uploader. Publishing a transparent,
+    verifiable record of federal proceedings is a task carried out in the
+    public interest, supporting government transparency and accountability.
+  purpose_grants:
+    - public_transparency
+    - research
+    - journalism
+  expiration: null
+  terms_of_service: https://policy.publicvcons.org/terms
+  registry: https://scitt.publicvcons.org
+  proof_mechanisms: scitt_statement_chain
+  citations:
+    - https://www.law.cornell.edu/uscode/text/17/105
+    - https://creativecommons.org/publicdomain/zero/1.0/
+
+rate_limits:
+  requests_per_minute: 30
+  concurrent_downloads: 1
+  notes: >
+    Internet Archive serves from its own CDN. Single concurrent download
+    per item; self-throttled to be a good neighbor.
+
+distribution_channels:
+  bluesky_post: true
+  huggingface_include_audio: false
+  huggingface_include_transcripts: true
+
+media_storage:
+  target: digital_ocean_spaces://publicvcons/media/backfill/ia_gov_house
+  cdn: https://media.publicvcons.org
+
+# Required for kind: backfill. source_media_sha256 is set per item on the
+# vcon (in the lawful_basis.source block), not here.
+sourced_from:
+  archive: Internet_Archive
+  archive_identifier: "{per-item, e.g. gov.house.20100525}"
+  obtained_at: "{per-item ISO 8601}"
+  source_media_sha256: "{per-item sha256}"
+  notes: >
+    First item processed under this profile: gov.house.20100525, the
+    May 25 2010 House of Representatives Law.Gov event (CC0).
