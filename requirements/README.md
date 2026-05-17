@@ -5,7 +5,7 @@ Two virtualenvs on the Mac mini, both **Python 3.13**:
 | venv            | purpose                                            | lock file          |
 |-----------------|----------------------------------------------------|--------------------|
 | `~/venvs/pvcons`| pyannote diarization (`pipeline/diarize.py`)       | `pvcons.lock.txt`  |
-| `~/venvs/tools` | yt-dlp + stdlib pipeline scripts (merge/analyze/assemble/scitt) | `tools.lock.txt` |
+| `~/venvs/tools` | yt-dlp, the upstream `vcon` library (assembly), cryptography (SCITT), merge/analyze scripts | `tools.lock.txt` |
 
 Recreate:
 
