@@ -1,0 +1,15 @@
+brotli==1.2.0
+certifi==2026.4.22
+cffi==2.0.0
+charset-normalizer==3.4.7
+cryptography==48.0.0
+curl_cffi==0.14.0
+idna==3.15
+mutagen==1.47.0
+pycparser==3.0
+pycryptodomex==3.23.0
+requests==2.34.2
+urllib3==2.7.0
+websockets==16.0
+yt-dlp==2026.5.16.233954.dev0
+yt-dlp-ejs==0.8.0
