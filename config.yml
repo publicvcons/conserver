@@ -1,0 +1,84 @@
+---
+# PublicVCons vcon-server configuration.
+#
+# This is a real upstream vcon-server (vcon-dev) config. vcon-server is
+# consumed as a dependency, not forked; only our links/ and source
+# profiles live in this repo. When the server is deployed (Phase 1
+# cloud, PROTOTYPE_PLAN.md §8) point it at this file.
+#
+# The Mac mini stays offline (§8), so the same link modules also run
+# under orchestrate.py without Redis. links/_base.py resolves the vCon
+# store to VconRedis when embedded, else a filesystem store.
+
+# Ingress vCons are built by orchestrate.py (acquire + normalize +
+# initial vCon with lawful_basis from the source profile) and pushed to
+# this list.
+ingress_auth:
+  publicvcons_ingress: "set-in-deployment-secret"
+
+links:
+  # Hard-rule gate. Runs first: drops any vCon lacking a complete
+  # lawful_basis attachment before any compute is spent on it.
+  lawful_basis:
+    module: links.lawful_basis
+    ingress-lists: []
+    egress-lists: []
+
+  # Local transcription (whisper.cpp large-v3). NOT the upstream
+  # cloud-capable transcribe link — PublicVCons forbids paid APIs.
+  whisper_cpp:
+    module: links.whisper_cpp
+    options:
+      model: /Volumes/publicvcons/models/whisper-cpp/ggml-large-v3.bin
+      language: en
+      threads: 8
+
+  # pyannote diarization + merge; also creates anonymous parties.
+  diarize:
+    module: links.diarize
+    options:
+      pvcons_python: ~/venvs/pvcons/bin/python
+      tools_python: ~/venvs/tools/bin/python
+
+  # Local LLM analysis via Ollama (no paid API).
+  analyze_local:
+    module: links.analyze_local
+    options:
+      model: llama3.1:8b-instruct-q4_K_M
+      ollama_models: /Volumes/publicvcons/models/ollama
+
+  # SCITT lifecycle anchoring. Phase 0 uses our ed25519 stand-in
+  # (orchestrate.py --scitt). Phase 1 target: the upstream `scitt` link
+  # (COSE Sign1 / SCRAPI) against scitt.publicvcons.org. Uncomment and
+  # add `scitt` to the chain once the SCITT service is live (task #13).
+  # scitt:
+  #   module: links.scitt
+  #   options:
+  #     scrapi_url: https://scitt.publicvcons.org
+  #     issuer: did:web:scitt.publicvcons.org
+  #     store_receipt: true
+
+storages:
+  # Local-first canonical store on the external drive (§6).
+  file:
+    module: storage.file
+    options:
+      path: /Volumes/publicvcons/data
+      organize_by_date: true
+      compression: false
+
+chains:
+  publicvcons:
+    links:
+      - lawful_basis
+      - whisper_cpp
+      - diarize
+      - analyze_local
+      # - scitt   # enable with the scitt service (task #13)
+    ingress_lists:
+      - publicvcons_ingress
+    storages:
+      - file
+    egress_lists:
+      - publicvcons_published
+    enabled: 1

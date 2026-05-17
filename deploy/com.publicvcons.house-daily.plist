@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd job: unattended daily House-floor ingest.
+
+  Install:
+    cp deploy/com.publicvcons.house-daily.plist \
+       ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.publicvcons.house-daily.plist
+
+  Runs deploy/house_daily.sh once a day at 23:30 local (after the House
+  typically adjourns and the Clerk's same-day upload is posted). The
+  script is idempotent, so a missed run is caught up by the next one.
+
+  Edit the two paths below if this repo is not checked out at
+  ~/publicvcons/conserver.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.publicvcons.house-daily</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/openconserver/publicvcons/conserver/deploy/house_daily.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>23</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+
+  <!-- Catch up if the mini was asleep at the scheduled time. -->
+  <key>StartInterval</key>
+  <integer>0</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Volumes/publicvcons/logs/house_daily.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Volumes/publicvcons/logs/house_daily.stderr.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
