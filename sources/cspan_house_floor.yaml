@@ -17,12 +17,20 @@
 id: cspan_house_floor
 name: US House of Representatives, floor proceedings (via C-SPAN)
 kind: live
-status: active
+# PAUSED 2026-05-16. C-SPAN's site is behind a hard WAF (HTTP 202 JS
+# challenge that defeats even curl_cffi Chrome impersonation) and
+# yt-dlp's C-SPAN extractor only matches the legacy
+# c-span.org/video/?<id> URL form, which now 404s. Not runnable as
+# written. The primary live House source is now the official Office of
+# the Clerk feed: see house_clerk_youtube.yaml. Kept (not retired) so
+# the C-SPAN access path can be revived if a working extractor or WAF
+# strategy lands; the id is unchanged because no vcon references it yet.
+status: paused
 description: >
   Live capture of US House of Representatives floor proceedings, accessed
   through C-SPAN. Underlying camera feed is a US government work in the
-  public domain. Used as the first end to end ingest in Phase 0 because it
-  is the cleanest legal posture available.
+  public domain. PAUSED: superseded by house_clerk_youtube (official
+  Clerk feed) because the C-SPAN site is WAF-blocked.
 
 # The canonical published feed page. The acquisition tool resolves the
 # embedded HLS playlist from the page at run time, so this URL is stable

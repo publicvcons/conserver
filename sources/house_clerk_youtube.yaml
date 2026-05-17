@@ -1,0 +1,144 @@
+# PublicVCons source profile: US House floor video, official Clerk feed
+#
+# This supersedes cspan_house_floor as the primary LIVE House source.
+#
+# Why this is better than the C-SPAN path:
+#   1. Primary source, not a distributor. The Office of the Clerk of the
+#      US House publishes the chamber camera feed itself, live and
+#      on-demand, on its official YouTube channel (and HouseLive.gov).
+#      The recording is a US government work in the public domain under
+#      17 USC 105. There is no distributor copyright layer to reason
+#      about at all.
+#   2. Accessible. The Clerk's YouTube channel is not behind a bot wall
+#      and is captured cleanly by yt-dlp, live and archived. C-SPAN's
+#      site is behind a hard WAF (HTTP 202 JS challenge) and yt-dlp's
+#      C-SPAN extractor only matches a legacy URL form that now 404s, so
+#      cspan_house_floor is not runnable as written (see that file).
+#
+# Channel: https://www.youtube.com/USHouseClerk
+#   live:      https://www.youtube.com/USHouseClerk/live
+#   archive:   https://www.youtube.com/USHouseClerk/videos
+#     uploads are titled e.g.
+#     "US House Floor Proceedings (Friday, March 27, 2026)"
+
+id: house_clerk_youtube
+name: US House of Representatives, floor proceedings (Office of the Clerk)
+kind: live
+status: active
+description: >
+  Live and same-day capture of US House of Representatives floor
+  proceedings from the Office of the Clerk's official YouTube channel.
+  The chamber camera feed is a US government work in the public domain.
+  Primary live source for PublicVCons, replacing the C-SPAN access path.
+
+# Live endpoint. The acquisition tool polls this; YouTube returns "not
+# currently live" when the House is not in session, and the daily upload
+# appears on /videos shortly after the session ends for same-day backfill.
+url_pattern: https://www.youtube.com/USHouseClerk/live
+
+# House sessions are not on a fixed clock. Poll the live endpoint; start
+# capture when the channel goes live, and reconcile against the titled
+# /videos upload after the session.
+refresh_cadence: event_driven
+
+acquisition:
+  tool: yt-dlp
+  args:
+    - --no-part
+    - --no-mtime
+    - --restrict-filenames
+    - --concurrent-fragments
+    - "1"
+    - -f
+    - bv*+ba/b
+    - --merge-output-format
+    - mp4
+    - --live-from-start
+  output_audio_format: wav_16k_mono
+  output_video_format: mp4_h264_aac
+
+normalization:
+  audio_sample_rate_hz: 16000
+  audio_channels: 1
+  video_container: mp4
+  video_codec: h264
+  audio_codec: aac
+
+transcription:
+  model: whisper.cpp:large-v3
+  language_hint: en
+  word_timestamps: true
+
+diarization:
+  engine: pyannote.audio:3.1
+  min_speakers: null
+  max_speakers: null
+
+# Floor proceedings have a published speaker order in the Congressional
+# Record; anchor diarizer output to it rather than maintaining a voice
+# print library for every Representative.
+speaker_identification:
+  strategy: congressional_record
+  metadata_source: https://www.govinfo.gov/app/collection/crec
+
+analysis:
+  model: llama3.1:8b-instruct-q4_K_M
+  tasks:
+    - summary
+    - topics
+    - entities
+    - bill_references
+    - vote_references
+    - neutral_editorial_summary
+
+participants_schema:
+  default_role: legislator
+  affiliation_required: true
+  anonymous_by_default: false
+  metadata_keys:
+    - full_name
+    - chamber          # always "house" for this profile
+    - state
+    - district
+    - party
+    - bioguide_id      # canonical id from bioguide.congress.gov
+    - role             # legislator, presiding_officer, clerk, sergeant_at_arms
+
+lawful_basis:
+  basis: public_task
+  justification: >
+    The US House of Representatives floor camera feed is a work of the US
+    government, in the public domain under 17 USC 105. It is published
+    here directly by the Office of the Clerk of the House, the primary
+    source, with no intervening distributor. Publishing transcripts and
+    analyses of this material is a task carried out in the public
+    interest, supporting government transparency and accountability.
+  purpose_grants:
+    - public_transparency
+    - research
+    - journalism
+  expiration: null
+  terms_of_service: https://policy.publicvcons.org/terms
+  registry: https://scitt.publicvcons.org
+  proof_mechanisms: scitt_statement_chain
+  citations:
+    - https://www.law.cornell.edu/uscode/text/17/105
+    - https://live.house.gov/
+    - https://www.youtube.com/USHouseClerk
+    - https://clerk.house.gov/
+
+rate_limits:
+  requests_per_minute: 30
+  concurrent_downloads: 1
+  notes: >
+    Single concurrent download per session day. Poll the live endpoint
+    no more than twice a minute when the House is expected in session.
+
+distribution_channels:
+  bluesky_post: true
+  huggingface_include_audio: false
+  huggingface_include_transcripts: true
+
+media_storage:
+  target: digital_ocean_spaces://publicvcons/media/live/house_clerk_youtube
+  cdn: https://media.publicvcons.org
