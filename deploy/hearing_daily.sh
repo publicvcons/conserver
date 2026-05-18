@@ -86,6 +86,7 @@ set -e
 
 if [[ $rc -eq 0 ]]; then
   touch "$MARKER"; log "ingest OK for $PICK"
+  "$(dirname "$0")/publish_atproto.sh" || true
 else
   log "ingest FAILED rc=$rc for $PICK (no marker; will retry)"
 fi

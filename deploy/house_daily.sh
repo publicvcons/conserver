@@ -82,6 +82,7 @@ set -e
 if [[ $rc -eq 0 ]]; then
   touch "$MARKER"
   log "ingest OK for $NEWEST_ID"
+  "$(dirname "$0")/publish_atproto.sh" || true
 else
   log "ingest FAILED rc=$rc for $NEWEST_ID (no marker; will retry)"
 fi
