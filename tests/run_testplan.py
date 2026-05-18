@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PublicVCons acceptance runner — executes TEST_PLAN.md T1-T11.
+"""PublicVCons acceptance runner — executes TEST_PLAN.md T1-T12.
 
 Run with the tools venv:
     ~/venvs/tools/bin/python seed/conserver/tests/run_testplan.py
@@ -289,6 +289,23 @@ else:
 rec("T11", not e,
     "5 receipts verify offline (countersig+proof+leaf+issuer); "
     "published service key matches; tamper detected"
+    if not e else str(e))
+
+# ---- T12  MCP server ----
+e=[]
+mcp_test = WS/"seed/mcp/test_server.py"
+if not mcp_test.is_file():
+    e.append("seed/mcp/test_server.py missing")
+else:
+    mt = subprocess.run(
+        [str(Path.home()/ "venvs/tools/bin/python"), str(mcp_test)],
+        capture_output=True, text=True,
+        env={**os.environ, "PVCONS_CORPUS": str(WS/"seed/vcons")})
+    if mt.returncode != 0 or "PASS" not in mt.stdout:
+        tail = (mt.stdout + mt.stderr).strip().splitlines()[-3:]
+        e.append("smoke test failed: " + " | ".join(tail))
+rec("T12", not e,
+    "MCP stdio: all tools + resources + verify_vcon + error path OK"
     if not e else str(e))
 
 print("\n==== SUMMARY ====")
