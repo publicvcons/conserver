@@ -1,0 +1,127 @@
+# PublicVCons historical priority backlog (PROTOTYPE_PLAN.md §3.5).
+#
+# The plan's "suggested first ten". Each entry is machine-runnable by
+# run_backlog.py via orchestrate.py when status: ready. Identifiers were
+# verified against the Internet Archive metadata API; items without a
+# clean, orchestrator-compatible public-domain source are honestly
+# marked status: needs_source with the reason (NOT faked).
+#
+# Provenance rule: only public-domain / CC0 federal works. C-SPAN is
+# WAF-blocked (see source profiles) so IA/NARA is the path. NARA
+# gov.archives.arc.* items are the gold standard (§3.5).
+#
+# segment_dur caps a first pass so a daily backfill run stays tractable
+# on the offline mini; raise/remove per item to ingest the full event.
+
+items:
+  - id: iran_contra_19870708
+    plan_priority: 5            # Iran-Contra hearings
+    title: "Iran-Contra Hearings, 1987-07-08 (Oliver North testimony day)"
+    status: ready
+    source: nara_federal
+    archive_id: gov.archives.arc.11161
+    recording_date: "1987-07-08"
+    segment_start: 0
+    segment_dur: 1500
+    subject: "Iran-Contra Hearings (July 8, 1987)"
+    note: >
+      NARA ARC 11161, CC0, FedFlix/usgovfilms. ~64 min source;
+      first pass capped at 25 min.
+
+  - id: apollo11_air_to_ground
+    plan_priority: 10           # Apollo 11 air-to-ground audio
+    title: "Apollo 11 air-to-ground voice (NASA)"
+    status: ready
+    source: nasa_audio
+    archive_id: Apollo11Audio
+    ia_file: "11-03301.mp3"
+    recording_date: "1969-07-16"
+    segment_start: 0
+    segment_dur: 1500
+    subject: "Apollo 11 air-to-ground voice loop"
+    note: >
+      NASA audio collection, public-domain mark. Multi-file item;
+      11-03301.mp3 is the opening air-to-ground reel. Needs
+      orchestrate.py --ia-file (now supported).
+
+  - id: watergate_nixon_address
+    plan_priority: 4            # Watergate (related; see note)
+    title: "President Nixon address on Watergate (NARA)"
+    status: ready
+    source: nara_federal
+    archive_id: gov.archives.arc.48638
+    recording_date: "1973-04-30"
+    segment_start: 0
+    segment_dur: 1500
+    subject: "President Nixon defends his office on Watergate charges"
+    note: >
+      NARA ARC 48638. NOTE: this is the Nixon *address*, not the
+      Senate Watergate (Ervin) Committee hearings the plan names. Kept
+      as a clean NARA Watergate-era artifact; watergate_senate_hearings
+      remains needs_source.
+
+  # ---- verified gap: no clean orchestrator-ready PD source found ----
+  - id: sotu_since_2000
+    plan_priority: 1
+    title: "Every State of the Union since 2000"
+    status: needs_source
+    note: >
+      Modern SOTU video by a sitting president is 17 USC 105 PD, but no
+      clean per-address IA identifier verified (IA results were
+      parody/segmentation/news-show noise). Candidate paths: NARA
+      catalog, presidential libraries, or official WhiteHouse.gov
+      archives. One vcon per address once a source is fixed.
+
+  - id: jan6_committee_hearings
+    plan_priority: 2
+    title: "January 6 Committee public hearings"
+    status: needs_source
+    note: >
+      IA item USHOUSE_JAN6_CMTTE exists (PD mark) but is a multi-file
+      collection with nested per-day paths, not a single derivative.
+      Ready once the exact per-day file path is pinned (orchestrate
+      --ia-file) and verified.
+
+  - id: nine_eleven_commission_hearings
+    plan_priority: 3
+    title: "9/11 Commission public hearings"
+    status: needs_source
+    note: >
+      No clean PD hearing recording verified on IA (results were
+      report readings / commentary / single testimony clips). C-SPAN
+      has it but is WAF-blocked. Needs a verified archive.
+
+  - id: watergate_senate_hearings
+    plan_priority: 4
+    title: "Watergate Senate (Ervin Committee) hearings"
+    status: needs_source
+    note: >
+      The Sam Ervin Select Committee hearings themselves were not found
+      as a clean orchestrator-ready PD IA item. watergate_nixon_address
+      (above) is the available NARA Watergate-era artifact.
+
+  - id: anita_hill_hearings
+    plan_priority: 6
+    title: "Anita Hill / Clarence Thomas confirmation hearings"
+    status: needs_source
+    note: "No clean PD IA item verified (search returned unrelated media)."
+
+  - id: bork_confirmation
+    plan_priority: 7
+    title: "Robert Bork confirmation hearings"
+    status: needs_source
+    note: >
+      Only C-SPAN3 TV-archive captures found (messy rights, not the
+      clean chamber/NARA source). Needs a verified PD source.
+
+  - id: oconnor_confirmation
+    plan_priority: 8
+    title: "Sandra Day O'Connor confirmation"
+    status: needs_source
+    note: "No clean PD IA item verified."
+
+  - id: marshall_confirmation
+    plan_priority: 9
+    title: "Thurgood Marshall confirmation"
+    status: needs_source
+    note: "No clean PD IA item verified."

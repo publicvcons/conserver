@@ -1,0 +1,107 @@
+# PublicVCons source profile: NASA mission audio via the Internet
+# Archive (e.g. the Apollo 11 air-to-ground / onboard voice loops).
+#
+# NASA-produced mission audio is a work of the US government in the
+# public domain under 17 USC 105; the Internet Archive NASA audio
+# collection additionally carries a public-domain mark. PROTOTYPE_PLAN
+# §3.5 lists the Apollo 11 air-to-ground audio in the priority list.
+#
+# Mission audio is split into many short files per item, so processing
+# names a specific file (orchestrate.py --ia-file).
+
+id: nasa_audio
+name: NASA mission audio (Internet Archive)
+kind: backfill
+status: active
+description: >
+  Backfill capture of NASA mission audio (air-to-ground and onboard
+  voice loops) mirrored on the Internet Archive. US government work,
+  public domain under 17 USC 105.
+
+url_pattern: https://archive.org/details/{archive_identifier}
+
+refresh_cadence: event_driven
+
+acquisition:
+  tool: httpx
+  args:
+    - --follow-redirects
+  output_audio_format: wav_16k_mono
+  output_video_format: none
+
+normalization:
+  audio_sample_rate_hz: 16000
+  audio_channels: 1
+
+transcription:
+  model: whisper.cpp:large-v3
+  language_hint: en
+  word_timestamps: true
+
+diarization:
+  engine: pyannote.audio:3.1
+  min_speakers: null
+  max_speakers: null
+
+speaker_identification:
+  strategy: none
+  metadata_source: null
+
+analysis:
+  model: llama3.1:8b-instruct-q4_K_M
+  tasks:
+    - summary
+    - topics
+    - entities
+    - neutral_editorial_summary
+
+participants_schema:
+  default_role: speaker
+  affiliation_required: false
+  anonymous_by_default: true
+  metadata_keys:
+    - diarization_label
+    - identified
+
+lawful_basis:
+  basis: public_task
+  justification: >
+    NASA-produced mission audio is a work of the US government in the
+    public domain under 17 USC 105; the Internet Archive NASA audio
+    collection additionally carries a public-domain mark. Publishing a
+    transparent, verifiable record of this federal material is a task
+    carried out in the public interest.
+  purpose_grants:
+    - public_transparency
+    - research
+    - journalism
+  expiration: null
+  terms_of_service: https://policy.publicvcons.org/terms
+  registry: https://scitt.publicvcons.org
+  proof_mechanisms: scitt_statement_chain
+  citations:
+    - https://www.law.cornell.edu/uscode/text/17/105
+    - https://creativecommons.org/publicdomain/mark/1.0/
+
+rate_limits:
+  requests_per_minute: 30
+  concurrent_downloads: 1
+  notes: Single concurrent download per item; self-throttled.
+
+distribution_channels:
+  bluesky_post: true
+  huggingface_include_audio: false
+  huggingface_include_transcripts: true
+
+media_storage:
+  target: digital_ocean_spaces://publicvcons/media/backfill/nasa_audio
+  cdn: https://media.publicvcons.org
+
+sourced_from:
+  archive: Internet_Archive
+  archive_identifier: "{per-item, e.g. Apollo11Audio}"
+  obtained_at: "{per-item ISO 8601}"
+  source_media_sha256: "{per-item sha256}"
+  notes: >
+    Multi-file mission audio; the specific file is named per item
+    (orchestrate.py --ia-file, e.g. 11-03301.mp3).

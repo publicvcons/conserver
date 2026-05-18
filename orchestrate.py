@@ -71,14 +71,25 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
-def acquire_internet_archive(archive_id: str, media_dir: Path) -> Path:
+def acquire_internet_archive(archive_id: str, media_dir: Path,
+                             ia_file: str | None = None) -> Path:
+    """Download an IA item file.
+
+    Default is the single-file derivative `{id}_512kb.mp4`. For
+    multi-file items (NASA audio, nested hearing collections) pass
+    --ia-file with the exact file name within the item.
+    """
     media_dir.mkdir(parents=True, exist_ok=True)
-    out = media_dir / f"{archive_id}.mp4"
+    fname = ia_file or f"{archive_id}_512kb.mp4"
+    local = (f"{archive_id}__" +
+             fname.replace("/", "_")) if ia_file else f"{archive_id}.mp4"
+    out = media_dir / local
     if out.is_file() and out.stat().st_size > 0:
         logger.info("source already present: %s", out)
         return out
+    from urllib.parse import quote
     url = (f"https://archive.org/download/{archive_id}/"
-           f"{archive_id}_512kb.mp4")
+           f"{quote(fname)}")
     logger.info("downloading %s", url)
     subprocess.run(["curl", "-sL", "-A", "pvcons/0.1",
                     "-o", str(out), url], check=True)
@@ -149,8 +160,10 @@ def build_initial_vcon(vid: str, subject: str, rec_date: str,
         start=created,
         parties=[],
         duration=seg_dur,
-        mediatype="video/mp4",
-        filename=f"{ia_id}.mp4",
+        mediatype=("audio/mpeg" if src_media_url.lower()
+                   .endswith((".mp3", ".m4a", ".wav"))
+                   else "video/mp4"),
+        filename=src_media_url.rsplit("/", 1)[-1],
         url=src_media_url,
         content_hash=f"sha256-{src_sha}",
         meta={
@@ -269,6 +282,8 @@ def main() -> int:
     ap.add_argument("--source", required=True,
                     help="source profile id (sources/<id>.yaml)")
     ap.add_argument("--archive-id", help="Internet Archive item id")
+    ap.add_argument("--ia-file", help="exact file within a multi-file "
+                    "IA item (e.g. 11-03301.mp3)")
     ap.add_argument("--youtube-url", help="YouTube watch URL")
     ap.add_argument("--recording-date", required=True,
                     help="YYYY-MM-DD")
@@ -303,11 +318,13 @@ def main() -> int:
 
     # ---- ingress: acquire ----
     if args.archive_id:
-        src_mp4 = acquire_internet_archive(args.archive_id, media_dir)
+        src_mp4 = acquire_internet_archive(args.archive_id, media_dir,
+                                           args.ia_file)
         src_url = f"https://archive.org/details/{args.archive_id}"
-        src_media_url = (f"https://archive.org/download/"
-                         f"{args.archive_id}/"
-                         f"{args.archive_id}_512kb.mp4")
+        from urllib.parse import quote as _q
+        src_media_url = (
+            f"https://archive.org/download/{args.archive_id}/"
+            f"{_q(args.ia_file) if args.ia_file else args.archive_id + '_512kb.mp4'}")
         ia_id = args.archive_id
     elif args.youtube_url:
         ia_id = args.youtube_url.rsplit("=", 1)[-1]

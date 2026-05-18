@@ -1,0 +1,123 @@
+# PublicVCons source profile: US federal proceedings held by the
+# National Archives (NARA), accessed via the Internet Archive.
+#
+# PROTOTYPE_PLAN.md §3.5: "NARA is the spine ... NARA holdings default
+# to public_task with citation to the NARA identifier." NARA digitised
+# federal records on the Internet Archive carry the gov.archives.arc.*
+# identifier (the NARA ARC / Catalog id) and are US government works in
+# the public domain under 17 USC 105, additionally CC0 on IA.
+#
+# This is the canonical backfill profile for the historical priority
+# list (Iran-Contra, Watergate-era, etc.) where a NARA item exists.
+
+id: nara_federal
+name: US federal proceedings, National Archives (NARA) via Internet Archive
+kind: backfill
+status: active
+description: >
+  Backfill capture of US federal hearings, addresses and proceedings
+  digitised by the National Archives and mirrored on the Internet
+  Archive under gov.archives.arc.* identifiers. US government works,
+  public domain under 17 USC 105.
+
+url_pattern: https://archive.org/details/{archive_identifier}
+
+refresh_cadence: event_driven
+
+acquisition:
+  tool: httpx
+  args:
+    - --follow-redirects
+  output_audio_format: wav_16k_mono
+  output_video_format: mp4_h264_aac
+
+normalization:
+  audio_sample_rate_hz: 16000
+  audio_channels: 1
+  video_container: mp4
+  video_codec: h264
+  audio_codec: aac
+
+transcription:
+  model: whisper.cpp:large-v3
+  language_hint: en
+  word_timestamps: true
+
+diarization:
+  engine: pyannote.audio:3.1
+  min_speakers: null
+  max_speakers: null
+
+# Older federal hearings predate our enrollment library and rarely have
+# a clean machine-readable speaker map; speakers stay anonymous unless
+# external NARA catalog / witness-list metadata identifies them.
+speaker_identification:
+  strategy: none
+  metadata_source: null
+
+analysis:
+  model: llama3.1:8b-instruct-q4_K_M
+  tasks:
+    - summary
+    - topics
+    - entities
+    - bill_references
+    - vote_references
+    - neutral_editorial_summary
+
+participants_schema:
+  default_role: speaker
+  affiliation_required: false
+  anonymous_by_default: true
+  metadata_keys:
+    - diarization_label
+    - identified
+
+lawful_basis:
+  basis: public_task
+  justification: >
+    The recorded event is a proceeding of the US federal government
+    held and digitised by the National Archives and Records
+    Administration (NARA). Works of the US government are in the public
+    domain under 17 USC 105; the NARA item on the Internet Archive is
+    additionally dedicated to the public domain (CC0). Publishing a
+    transparent, verifiable record of federal proceedings is a task
+    carried out in the public interest. The NARA ARC/Catalog identifier
+    is recorded per item for citation.
+  purpose_grants:
+    - public_transparency
+    - research
+    - journalism
+  expiration: null
+  terms_of_service: https://policy.publicvcons.org/terms
+  registry: https://scitt.publicvcons.org
+  proof_mechanisms: scitt_statement_chain
+  citations:
+    - https://www.law.cornell.edu/uscode/text/17/105
+    - https://creativecommons.org/publicdomain/zero/1.0/
+    - https://catalog.archives.gov/
+
+rate_limits:
+  requests_per_minute: 30
+  concurrent_downloads: 1
+  notes: >
+    Single concurrent download per item; self-throttled. The Internet
+    Archive serves NARA items from its own CDN.
+
+distribution_channels:
+  bluesky_post: true
+  huggingface_include_audio: false
+  huggingface_include_transcripts: true
+
+media_storage:
+  target: digital_ocean_spaces://publicvcons/media/backfill/nara_federal
+  cdn: https://media.publicvcons.org
+
+sourced_from:
+  archive: NARA
+  archive_identifier: "{per-item, e.g. gov.archives.arc.11161}"
+  obtained_at: "{per-item ISO 8601}"
+  source_media_sha256: "{per-item sha256}"
+  notes: >
+    archive_identifier is the NARA ARC / National Archives Catalog id,
+    embedded in the Internet Archive identifier (gov.archives.arc.<id>).
