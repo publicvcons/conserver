@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd job: unattended daily committee-hearing ingest.
+
+  Install:
+    cp deploy/com.publicvcons.hearing-daily.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.publicvcons.hearing-daily.plist
+
+  Runs deploy/hearing_daily.sh once a day at 23:50 local (after the
+  House-floor job at 23:30). Idempotent, so a missed run is caught up
+  by the next. Override the committee channel via the
+  PVCONS_HEARING_CHANNEL env var in this plist. Adjust the path if this
+  repo is not at ~/publicvcons/conserver.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.publicvcons.hearing-daily</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/openconserver/publicvcons/conserver/deploy/hearing_daily.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>23</integer>
+    <key>Minute</key><integer>50</integer>
+  </dict>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PVCONS_HEARING_CHANNEL</key>
+    <string>@EnergyCommerce</string>
+    <key>PVCONS_SCITT_URL</key>
+    <string>https://scitt.publicvcons.org</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Volumes/publicvcons/logs/hearing_daily.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Volumes/publicvcons/logs/hearing_daily.stderr.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

@@ -198,8 +198,13 @@ def build_initial_vcon(vid: str, subject: str, rec_date: str,
             "justification": plb.get("justification", "").strip(),
             "citations": plb.get("citations", []),
             "source": {
-                "archive": (profile.get("sourced_from", {})
-                            .get("archive", "Internet_Archive")),
+                "archive": (
+                    profile["sourced_from"]["archive"]
+                    if profile.get("sourced_from", {}).get("archive")
+                    else (f"YouTube official channel "
+                          f"({profile.get('channel', 'committee')})"
+                          if profile.get("kind") == "live"
+                          else "Internet_Archive")),
                 "archive_identifier": ia_id,
                 "source_url": src_url,
                 "source_media_url": src_media_url,
@@ -295,9 +300,11 @@ def main() -> int:
     ap.add_argument("--scitt", action="store_true",
                     help="sign the SCITT lifecycle chain")
     ap.add_argument("--scitt-url", default=os.environ.get(
-        "PVCONS_SCITT_URL"),
-        help="transparency service to anchor statements in "
-             "(e.g. http://127.0.0.1:8000); also stores receipts")
+        "PVCONS_SCITT_URL", "https://scitt.publicvcons.org"),
+        help="transparency service to anchor statements in; defaults "
+             "to the canonical cloud log https://scitt.publicvcons.org "
+             "(override with PVCONS_SCITT_URL or this flag); also "
+             "stores receipts")
     args = ap.parse_args()
 
     profile = load_source_profile(args.source)
