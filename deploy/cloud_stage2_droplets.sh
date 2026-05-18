@@ -103,8 +103,10 @@ ensure_cname(){ # name target proxied
 say "Preflight"
 command -v doctl >/dev/null || { echo "doctl not found"; exit 1; }
 doctl account get >/dev/null 2>&1 || { echo "doctl not authed"; exit 1; }
-doctl compute ssh-key list --format FingerPrint --no-header 2>/dev/null \
-  | grep -qxF "$SSH_FPR" || { echo "SSH key $SSH_FPR not on the DO account"; exit 1; }
+SSHKEYS="$(doctl compute ssh-key list --format FingerPrint --no-header 2>/dev/null || true)"
+[ -n "$SSHKEYS" ] || { echo "Could not query DO SSH keys (transient API error?). Re-run this script."; exit 1; }
+printf '%s\n' "$SSHKEYS" | grep -qxF "$SSH_FPR" \
+  || { echo "SSH key $SSH_FPR (opens-mac-mini) not on the DO account"; exit 1; }
 [ -f "$LEDGER_LOCAL" ] || { echo "ledger not found: $LEDGER_LOCAL (mount the drive)"; exit 1; }
 [ -f "$SERVICE_KEY" ]  || { echo "service key not found: $SERVICE_KEY"; exit 1; }
 cf GET "/zones/$ZONE_ID/dns_records?per_page=1" >/dev/null \
