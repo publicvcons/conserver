@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PublicVCons Phase 0 acceptance runner — executes TEST_PLAN.md T1-T10.
+"""PublicVCons acceptance runner — executes TEST_PLAN.md T1-T11.
 
 Run with the tools venv:
     ~/venvs/tools/bin/python seed/conserver/tests/run_testplan.py
@@ -237,6 +237,59 @@ if not gh_ok: e.append("github vcon shape")
 rec("T10", not e,
     "GitHub corpus serves 0.4.0; viewer code matches new shape "
     "(visual/seek render = manual)" if not e else str(e))
+
+# ---- T11  SCITT transparency receipts ----
+e=[]
+scitt_cli = WS/"seed/scitt/cli/pvcons_scitt.py"
+recs = sorted((VDIR/"scitt").glob("*.scitt-receipt.json"))
+exp_rec = [f"{i+1:02d}_{s}.scitt-receipt.json"
+           for i,s in enumerate(STAGES)]
+if [r.name for r in recs] != exp_rec:
+    e.append(f"receipts {[r.name for r in recs]} != {exp_rec}")
+# published service public key present
+cfg = WS/"seed/vcons/.well-known/scitt-transparency-configuration.json"
+svc_x = None
+if not cfg.is_file():
+    e.append("missing scitt-transparency-configuration.json")
+else:
+    svc_x = json.loads(cfg.read_text())["service_public_key"]["x"]
+# every receipt countersigned by that published service key
+for r in recs:
+    if svc_x and json.loads(r.read_text()).get("service_kid") != svc_x:
+        e.append(f"{r.name} service_kid != published key")
+# offline verify: countersig + inclusion proof + leaf + issuer sig
+if scitt_cli.is_file():
+    rv = subprocess.run(
+        [str(Path.home()/ "venvs/tools/bin/python"), str(scitt_cli),
+         "verify", "--receipts", str(VDIR/"scitt")],
+        capture_output=True, text=True)
+    if not (rv.returncode == 0 and rv.stdout.count("OK ") == 5
+            and "BAD" not in rv.stdout):
+        e.append(f"offline verify: {rv.stdout.strip()} {rv.stderr[:120]}")
+    # negative control: tamper a statement and a receipt root
+    import tempfile as _tf, shutil as _sh
+    tdir = Path(_tf.mkdtemp())
+    _sh.copytree(VDIR/"scitt", tdir/"scitt")
+    sp = tdir/"scitt"/"03_transcribed.scitt.json"
+    d = json.loads(sp.read_text()); d["payload"]["stage"] = "HACKED"
+    sp.write_text(json.dumps(d))
+    rp = tdir/"scitt"/"05_published.scitt-receipt.json"
+    d = json.loads(rp.read_text())
+    d["receipt"]["root"] = "AAAA" + d["receipt"]["root"][4:]
+    rp.write_text(json.dumps(d))
+    rn = subprocess.run(
+        [str(Path.home()/ "venvs/tools/bin/python"), str(scitt_cli),
+         "verify", "--receipts", str(tdir/"scitt")],
+        capture_output=True, text=True)
+    if not (rn.returncode != 0 and rn.stdout.count("BAD") >= 2):
+        e.append(f"tamper not caught: {rn.stdout.strip()}")
+    _sh.rmtree(tdir)
+else:
+    e.append("scitt/cli/pvcons_scitt.py missing")
+rec("T11", not e,
+    "5 receipts verify offline (countersig+proof+leaf+issuer); "
+    "published service key matches; tamper detected"
+    if not e else str(e))
 
 print("\n==== SUMMARY ====")
 for k in sorted(results):
