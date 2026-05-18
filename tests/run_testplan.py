@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PublicVCons acceptance runner — executes TEST_PLAN.md T1-T12.
+"""PublicVCons acceptance runner — executes TEST_PLAN.md T1-T13.
 
 Run with the tools venv:
     ~/venvs/tools/bin/python seed/conserver/tests/run_testplan.py
@@ -306,6 +306,39 @@ else:
         e.append("smoke test failed: " + " | ".join(tail))
 rec("T12", not e,
     "MCP stdio: all tools + resources + verify_vcon + error path OK"
+    if not e else str(e))
+
+# ---- T13  viewer home feed + in-browser SCITT verifier ----
+e=[]
+idxf = WS/"seed/vcons/index.json"
+if not idxf.is_file():
+    e.append("seed/vcons/index.json missing")
+else:
+    ix = json.loads(idxf.read_text())
+    if ix.get("count",0) < 1 or not ix.get("vcons"):
+        e.append("index.json empty")
+    if "by_source" not in ix.get("collections",{}):
+        e.append("index.json missing collections.by_source")
+idx_html = (WS/"seed/site/index.html").read_text()
+for tok in ['import { verifyChain }', 'function home(',
+            'function detail(', 'index.json', 'vbtn']:
+    if tok not in idx_html: e.append(f"viewer missing {tok}")
+import shutil as _sh2
+node = _sh2.which("node")
+ptest = WS/"seed/site/test_scitt_verify.mjs"
+if node and ptest.is_file():
+    pr = subprocess.run([node, str(ptest)],
+                        capture_output=True, text=True)
+    if pr.returncode != 0 or "PARITY TEST: PASS" not in pr.stdout:
+        e.append("verifier parity: " +
+                 (pr.stdout+pr.stderr).strip().splitlines()[-1])
+elif not node:
+    e.append("node not found (cannot run verifier parity test)")
+else:
+    e.append("test_scitt_verify.mjs missing")
+rec("T13", not e,
+    "index.json + collections; viewer home/detail/verify wired; "
+    "in-browser verifier has Python parity (clean + tamper)"
     if not e else str(e))
 
 print("\n==== SUMMARY ====")
