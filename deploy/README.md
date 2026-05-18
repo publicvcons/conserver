@@ -3,6 +3,12 @@
 PROTOTYPE_PLAN.md Phase 1: *"Conserver based pipeline producing one
 vcon per House floor session per day, fully unattended."*
 
+> **Cloud is live.** For the deployed topology, the canonical-SCITT
+> decision, secrets locations, the ATPROTO bot wiring and outstanding
+> manual steps, see [`CLOUD.md`](CLOUD.md). The notes below describe
+> how the *ingest chain* runs; CLOUD.md is the operations source of
+> truth.
+
 ## Two ways the chain runs
 
 The link modules in `../links/` follow the upstream vcon-server
@@ -45,7 +51,12 @@ launchctl load ~/Library/LaunchAgents/com.publicvcons.house-daily.plist
   `PVCONS_SEG_DUR` while shaking it out.
 - Corpus git/Hugging Face mirroring is intentionally **not** automated
   here (a reviewed push step; §8 keeps the mini closed).
-- SCITT is still the local ed25519 stand-in (`pipeline/scitt_sign.py`).
-  Phase 1 target is the upstream `scitt` link against
-  scitt.publicvcons.org — see `config.yml` and project task “Stand up
-  SCITT service”.
+- SCITT is **deployed and canonical in the cloud** at
+  scitt.publicvcons.org (option-A migration; the mini's local ledger
+  is now a stale read-only copy). Statements are still signed locally
+  by `pipeline/scitt_sign.py` with the issuer key on the mini, then
+  anchored at the cloud service (`--scitt-url` default). See
+  [`CLOUD.md`](CLOUD.md).
+- ATPROTO publishing is wired: a successful ingest in `house_daily.sh`
+  / `hearing_daily.sh` calls `publish_atproto.sh`, which posts new
+  vCons to @publicvcons.org. Creds come from `~/.publicvcons.env`.
