@@ -214,9 +214,13 @@ def run_chain(vid: str, work: Path):
                              f"(lawful-basis hard rule or filter)")
 
 
-def sign_scitt(vcon_path: Path, lb_path: Path, scitt_dir: Path):
+SCITT_CLI = (HERE.parent / "scitt" / "cli" / "pvcons_scitt.py")
+
+
+def sign_scitt(vcon_path: Path, lb_path: Path, scitt_dir: Path,
+               scitt_url: str | None = None):
     scitt_dir.mkdir(parents=True, exist_ok=True)
-    for old in scitt_dir.glob("*.scitt.json"):
+    for old in scitt_dir.glob("*.json"):
         old.unlink()
     subprocess.run([TOOLS_PY, str(SCITT), "keygen"],
                    check=True, capture_output=True)
@@ -230,8 +234,34 @@ def sign_scitt(vcon_path: Path, lb_path: Path, scitt_dir: Path):
     r = subprocess.run([TOOLS_PY, str(SCITT), "verify",
                         "--receipts", str(scitt_dir)],
                        check=True, capture_output=True, text=True)
-    logger.info("SCITT: %d stages signed & verified",
+    logger.info("SCITT: %d stages signed (statement sigs verified)",
                 r.stdout.count("OK "))
+
+    # Anchor each statement in the transparency service and store its
+    # inclusion-proof receipt next to the statement.
+    if scitt_url:
+        try:
+            import httpx
+            httpx.get(f"{scitt_url}/", timeout=5).raise_for_status()
+        except Exception as e:
+            raise SystemExit(
+                f"SCITT service unreachable at {scitt_url}: {e}. "
+                f"Start it (see scitt/runbooks) or omit --scitt-url.")
+        n = 0
+        for st in sorted(scitt_dir.glob("*.scitt.json")):
+            rc = st.with_name(
+                st.name.replace(".scitt.json", ".scitt-receipt.json"))
+            subprocess.run([
+                TOOLS_PY, str(SCITT_CLI), "register",
+                "--statement", str(st), "--out", str(rc),
+                "--url", scitt_url,
+            ], check=True, capture_output=True)
+            n += 1
+        v = subprocess.run([TOOLS_PY, str(SCITT_CLI), "verify",
+                            "--receipts", str(scitt_dir)],
+                           check=True, capture_output=True, text=True)
+        logger.info("SCITT: %d statements anchored, %d receipts "
+                    "verified", n, v.stdout.count("OK "))
 
 
 def main() -> int:
@@ -249,6 +279,10 @@ def main() -> int:
                     help="existing work dir with cached intermediates")
     ap.add_argument("--scitt", action="store_true",
                     help="sign the SCITT lifecycle chain")
+    ap.add_argument("--scitt-url", default=os.environ.get(
+        "PVCONS_SCITT_URL"),
+        help="transparency service to anchor statements in "
+             "(e.g. http://127.0.0.1:8000); also stores receipts")
     args = ap.parse_args()
 
     profile = load_source_profile(args.source)
@@ -314,7 +348,8 @@ def main() -> int:
     lb_path.write_text(json.dumps(lb, indent=2))
 
     if args.scitt:
-        sign_scitt(vcon_path, lb_path, data_dir / "scitt")
+        sign_scitt(vcon_path, lb_path, data_dir / "scitt",
+                   args.scitt_url)
 
     print(json.dumps({
         "uuid": vid,
